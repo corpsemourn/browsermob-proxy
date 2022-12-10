@@ -112,7 +112,7 @@ class NewHarTest extends MockServerTest {
                 .withStatusCode(200)
                 .withBody("success")
                 .withHeader("Set-Cookie", "max-age-cookie=mock-value; Max-Age=3153600000")
-                .withHeader("Set-Cookie", "expires-cookie=mock-value; Expires=Wed, 15 Mar 2022 12:00:00 GMT"))
+                .withHeader("Set-Cookie", "expires-cookie=mock-value; Expires=Sun, 15 Jan 2023 12:00:00 GMT"))
 
         proxy = new BrowserMobProxyServer();
         proxy.setHarCaptureTypes([CaptureType.RESPONSE_COOKIES] as Set)
@@ -122,7 +122,7 @@ class NewHarTest extends MockServerTest {
         proxy.newHar()
 
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssX", Locale.US)
-        Date expiresDate = df.parse("2022-03-15 12:00:00Z")
+        Date expiresDate = df.parse("2023-01-15 12:00:00Z")
 
         // expiration of the cookie won't be before this date, since the request hasn't yet been issued
         Date maxAgeCookieNotBefore = new Date(System.currentTimeMillis() + 3153600000L)

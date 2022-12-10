@@ -79,8 +79,8 @@ public class LittleProxyIntegrationTest {
                 .start();
 
         try (CloseableHttpClient httpClient = getNewHttpClient(proxyServer.getListenAddress().getPort())) {
-            try (CloseableHttpResponse response = httpClient.execute(new HttpGet("https://www.google.com"))) {
-                assertEquals("Expected to receive an HTTP 200 from http://www.google.com", 200, response.getStatusLine().getStatusCode());
+            try (CloseableHttpResponse response = httpClient.execute(new HttpGet("https://www.baidu.com"))) {
+                assertEquals("Expected to receive an HTTP 200 from http://www.baidu.com", 200, response.getStatusLine().getStatusCode());
 
                 EntityUtils.consume(response.getEntity());
             }

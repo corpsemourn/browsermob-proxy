@@ -9,12 +9,12 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import net.lightbody.bmp.exception.DecompressionException;
 import net.lightbody.bmp.exception.UnsupportedCharsetException;
+import org.brotli.dec.BrotliInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import javax.annotation.Nullable;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -78,25 +78,47 @@ public class BrowserMobHttpUtil {
     /**
      * Decompresses the gzipped byte stream.
      *
-     * @param fullMessage gzipped byte stream to decomress
+     * @param fullMessage compressed byte stream to decomress
+     * @param encoding encoding type [gzip, br]
      * @return decompressed bytes
      * @throws DecompressionException thrown if the fullMessage cannot be read or decompressed for any reason
      */
-    public static byte[] decompressContents(byte[] fullMessage) throws DecompressionException {
-        InflaterInputStream gzipReader = null;
+    public static byte[] decompressContents(byte[] fullMessage, @Nullable String encoding) throws DecompressionException {
         ByteArrayOutputStream uncompressed;
+        InflaterInputStream gzipReader = null;
+        BufferedReader brReader = null;
+        int bytesRead;
         try {
-            gzipReader = new GZIPInputStream(new ByteArrayInputStream(fullMessage));
+            if (encoding.equals(HttpHeaders.Values.GZIP) || encoding.equals(HttpHeaders.Values.GZIP_DEFLATE)) {
+                gzipReader = new GZIPInputStream(new ByteArrayInputStream(fullMessage));
 
-            uncompressed = new ByteArrayOutputStream(fullMessage.length);
+                uncompressed = new ByteArrayOutputStream(fullMessage.length);
 
-            byte[] decompressBuffer = new byte[DECOMPRESS_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = gzipReader.read(decompressBuffer)) > -1) {
-                uncompressed.write(decompressBuffer, 0, bytesRead);
+                byte[] decompressBuffer = new byte[DECOMPRESS_BUFFER_SIZE];
+                while ((bytesRead = gzipReader.read(decompressBuffer)) > -1) {
+                    uncompressed.write(decompressBuffer, 0, bytesRead);
+                }
+
+                fullMessage = uncompressed.toByteArray();
             }
+            else if (encoding.equals( "br")) {
+                brReader = new BufferedReader(
+                        new InputStreamReader(new BrotliInputStream(new ByteArrayInputStream(fullMessage)))
+                );
 
-            fullMessage = uncompressed.toByteArray();
+                uncompressed = new ByteArrayOutputStream(fullMessage.length);
+                StringBuilder result = new StringBuilder();
+                String str = null;
+                while((str = brReader.readLine()) != null){
+                    result.append(str);
+                }
+                uncompressed.write(result.toString().getBytes());
+
+                fullMessage = uncompressed.toByteArray();
+            }
+            else if (encoding != null) {
+                throw new DecompressionException("Unable to decompress response with encoding type " + encoding);
+            }
         } catch (IOException e) {
             throw new DecompressionException("Unable to decompress response", e);
         } finally {
@@ -104,8 +126,11 @@ public class BrowserMobHttpUtil {
                 if (gzipReader != null) {
                     gzipReader.close();
                 }
+                if (brReader != null) {
+                    brReader.close();
+                }
             } catch (IOException e) {
-                log.warn("Unable to close gzip stream", e);
+                log.warn("Unable to close gzip/br stream", e);
             }
         }
         return fullMessage;

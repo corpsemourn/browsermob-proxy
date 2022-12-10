@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * This filter captures responses from the server (headers and content). The filter can also decompress contents if desired.
@@ -126,9 +128,11 @@ public class ServerResponseCaptureFilter extends HttpFiltersAdapter {
     }
 
     protected void decompressContents() {
-        if (contentEncoding.equals(HttpHeaders.Values.GZIP)) {
+        String[] encodingArray = new String[] { HttpHeaders.Values.GZIP, HttpHeaders.Values.GZIP_DEFLATE, "br" };
+        List<String> validEncodings = Arrays.asList(encodingArray);
+        if (validEncodings.contains(contentEncoding)) {
             try {
-                fullResponseContents = BrowserMobHttpUtil.decompressContents(getRawResponseContents());
+                fullResponseContents = BrowserMobHttpUtil.decompressContents(getRawResponseContents(), contentEncoding);
                 decompressionSuccessful = true;
             } catch (RuntimeException e) {
                 log.warn("Failed to decompress response with encoding type " + contentEncoding + " when decoding request from " + originalRequest.getUri(), e);
